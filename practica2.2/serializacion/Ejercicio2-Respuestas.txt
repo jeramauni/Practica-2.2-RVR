@@ -1,0 +1,6 @@
+El comando od escribe una representación inequívoca en sistema octal por defecto de un archivo
+de input a salida estandar.
+
+La serialización se realiza byte a byte al igual que la representación del comando od, 
+que representa concretamente en filas de 8 bytes, lo cual lo hace óptimo para visualizar
+ nuestro archivo data.
