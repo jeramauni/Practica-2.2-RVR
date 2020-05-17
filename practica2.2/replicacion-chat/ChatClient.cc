@@ -23,7 +23,8 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     pthread_create(&id, &attr, _client_thread, static_cast<void *>(&ec));
-
+    
+    std::cout << "Logging in...\n";
     ec.login();
 
     ec.input_thread();

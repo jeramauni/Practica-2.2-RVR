@@ -57,8 +57,8 @@ int Socket::recv(Serializable &obj, Socket * &sock)
 int Socket::send(Serializable& obj, const Socket& sock)
 {
     obj.to_bin();
-    int bytes = sendto(sd, obj.data(), obj.size(), 0, &(sock.sa), &(sock.sa_len));
-    if(bytes <= 0) return -1;
+    int bytes = sendto(sd, obj.data(), MAX_MESSAGE_SIZE, 0, &sock.sa, sock.sa_len);
+    if(bytes < 0) return -1;
     return 0;
 }
 

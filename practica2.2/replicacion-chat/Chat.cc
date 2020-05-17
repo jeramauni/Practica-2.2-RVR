@@ -1,49 +1,36 @@
 #include "Chat.h"
+#include <vector>
 
 void ChatMessage::to_bin()
 {
     alloc_data(MESSAGE_SIZE);
 
-    //Serializar los campos type, nick y message en el buffer _data
-    //int32_t total = MESSAGE_SIZE + 2 * sizeof(int16_t);
-        
-    //alloc_data(total);
+    memset(_data, 0, MESSAGE_SIZE);
 
-    char * tmp = _data;
+    memcpy(_data, static_cast<void *>(&type), sizeof(uint8_t));
+    _data += sizeof(uint8_t);
 
-    memset(tmp, 0, MESSAGE_SIZE);
+    memcpy(_data, static_cast<void *>((char*)nick.c_str()), nick.length());
+    _data += sizeof(char) * 8;
 
-    memcpy(tmp, static_cast<void *>(type), sizeof(uint8_t));
-    tmp += sizeof(uint8_t);
-
-    memcpy(tmp, nick.c_str(), nick.length());
-    tmp += sizeof(char) * 8;
-
-    memcpy(tmp, message.c_str(), message.length());
+    memcpy(_data, static_cast<void *>((char*)message.c_str()), message.length());
 }
 
 int ChatMessage::from_bin(char * bobj)
 {
-    /*
-    alloc_data(MESSAGE_SIZE);
 
-    memcpy(static_cast<void *>(_data), bobj, MESSAGE_SIZE);*/
+    memcpy(static_cast<void *>(&type), bobj, sizeof(uint8_t));
+    bobj += sizeof(uint8_t);
 
-    //Reconstruir la clase usando el buffer _data
-    char * tmp = bobj;
-
-    memcpy(static_cast<void *>(type), tmp, sizeof(uint8_t));
-    tmp += sizeof(uint8_t);
-
-    char[8] _nick;
-    memcpy(_nick, tmp, 8);
-    nick = convertToString(_nick, _nick.length()); 
-    tmp += 8 * sizeof(char);
+    char _nick [8];
+    memcpy(static_cast<void *>(&_nick), bobj, 8);
+    nick = _nick; 
+    bobj += 8 * sizeof(char);
     
-    char[80] _messages;
-    memcpy(_messages, tmp, 80);
-    nick = convertToString(_messages, _messages.length()); 
-    tmp += 80 * sizeof(char);
+    char _message [80];
+    memcpy(static_cast<void *>(&_message), bobj, 80);
+    message = _message; 
+    bobj += 80 * sizeof(char);
 
     return 0;
 }
@@ -61,65 +48,75 @@ void ChatServer::do_messages()
         // - MESSAGE: Reenviar el mensaje a todos los clientes (menos el emisor)
         Socket* client_Socket;
         ChatMessage message_Client;
-        socket.recv(message_Client, client_Socket);
-        switch (message_Client.type)
+
+        int err = socket.recv(message_Client, client_Socket);
+        if(err != -1)
         {
-        case MessageType::LOGIN:
-            auto it = clients.begin();
-            while(it != clients.end() && (*it) != client_Socket)
+            switch (message_Client.type)
             {
-                it++;
-            }
-            if(it != client.end())
-            {
-                std::cout << "LOGIN FAIL: Client " << message_Client.nick <<  "is already logged\n";
-            }
-            {
-                clients.push_back(client_Socket);
-                std::cout << "New client " << message_Client.nick <<  " logged succesfully\n";
-            }
-            break;
-        case MessageType::LOGOUT:
-            auto it = clients.begin();
-            while(it != clients.end() && (*it) != client_Socket)
-            {
-                it++;
-            }
-            if(it != client.end())
-            {
-                clients.erase(it);
-                std::cout << "Client " << message_Client.nick <<  " logged out succesfully\n";
-            }
-            else
-            {
-                std::cout << "LOGOUT FAIL: Client " << message_Client.nick <<  " is not logged \n";
-            }
-            
-            break;
-        case MessageType::MESSAGE:
-            
-            auto it = clients.begin();
-            while(it != clients.end() && (*it) != client_Socket)
-            {
-                it++;
-            }
-            if(it != client.end())
-            {
-                for(auto it = clients.begin(); it != clients.end(); it++)
+                case ChatMessage::LOGIN:
                 {
-                    if((*it) != client_Socket) socket.send(message_Client, *(*it));
-                }
-                std::cout << "Client " << message_Client.nick <<  " says "<< message_Client.message <<" \n"
-            }
-            else
-            {
-                std::cout << "MESSAGE FAIL: Client " << message_Client.nick <<  " is not logged \n"
-            }
-            
-            break;
-        default:
-            break;
-        }
+                    std::vector<Socket*>::iterator it = clients.begin();
+                    while(it != clients.end() && (*it) != client_Socket)
+                    {
+                        it++;
+                    }
+                    if(it != clients.end())
+                    {
+                        std::cout << "LOGIN FAIL: Client " << message_Client.nick <<  "is already logged\n";
+                    }
+                    {
+                        clients.push_back(client_Socket);
+                        std::cout << "New client " << message_Client.nick <<  " logged succesfully\n";
+                    }
+                    break;
+                }   
+                case ChatMessage::LOGOUT:
+                {
+                    std::vector<Socket*>::iterator it = clients.begin();
+                    while(it != clients.end() && (*it) != client_Socket)
+                    {
+                        it++;
+                    }
+                    if(it != clients.end())
+                    {
+                        clients.erase(it);
+                        std::cout << "Client " << message_Client.nick <<  " logged out succesfully\n";
+                    }
+                    else
+                    {
+                        std::cout << "LOGOUT FAIL: Client " << message_Client.nick <<  " is not logged \n";
+                    }
+                    break;
+                }   
+
+                case ChatMessage::MESSAGE:
+                {
+                    std::vector<Socket*>::iterator it = clients.begin();
+                    while(it != clients.end() && (*it) != client_Socket)
+                    {
+                        it++;
+                    }
+                    if(it != clients.end())
+                    {
+                        for(std::vector<Socket*>::iterator it = clients.begin(); it != clients.end(); it++)
+                        {
+                            if((*it) != client_Socket) socket.send(message_Client, *(*it));
+                        }
+                        std::cout << "Client " << message_Client.nick <<  " says "<< message_Client.message <<" \n";
+                    }
+                    else
+                    {
+                        std::cout << "MESSAGE FAIL: Client " << message_Client.nick <<  " is not logged \n";
+                    }
+                    break;
+                }  
+
+                default:
+                std::cout << "Default \n";
+                    break;
+            }   
+        }       
     }
 }
 
@@ -129,8 +126,14 @@ void ChatClient::login()
 
     ChatMessage em(nick, msg);
     em.type = ChatMessage::LOGIN;
+    std:: cout << "Type: " << ChatMessage::LOGIN << '\n',
 
-    socket.send(em, socket);
+    std::cout << "Logging: sending: " << em.type << " to: " << socket << '\n';
+    int err = socket.send(em, socket);
+    if (err == -1) {
+        std::cout << "login send error \n";
+    }
+    
 }
 
 void ChatClient::logout()
@@ -146,13 +149,13 @@ void ChatClient::logout()
 void ChatClient::input_thread()
 {
     bool inChat = true;
-    while (intChat)
+    while (inChat)
     {
+        std::cout << "inChat \n";
         // Leer stdin con std::getline
         // Enviar al servidor usando socket
         std::string msg;
-
-        msg = std::getline();
+        std::getline(std::cin, msg);
 
         if(msg == "exit" || msg == "logout")
         {
