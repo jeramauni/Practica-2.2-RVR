@@ -10,10 +10,13 @@ void ChatMessage::to_bin()
     memcpy(_data, static_cast<void *>(&type), sizeof(uint8_t));
     _data += sizeof(uint8_t);
 
-    memcpy(_data, static_cast<void *>((char*)nick.c_str()), nick.length());
+    memcpy(_data, static_cast<void *>((char*)nick.c_str()), sizeof(nick));
     _data += sizeof(char) * 8;
 
-    memcpy(_data, static_cast<void *>((char*)message.c_str()), message.length());
+    memcpy(_data, static_cast<void *>((char*)message.c_str()), sizeof(message));
+    _data += sizeof(char) * 80;
+
+    _data -= MESSAGE_SIZE;
 }
 
 int ChatMessage::from_bin(char * bobj)
@@ -23,15 +26,16 @@ int ChatMessage::from_bin(char * bobj)
     bobj += sizeof(uint8_t);
 
     char _nick [8];
-    memcpy(static_cast<void *>(&_nick), bobj, 8);
+    memcpy(static_cast<void *>(&_nick), bobj, sizeof(char) * 8);
     nick = _nick; 
-    bobj += 8 * sizeof(char);
+    bobj += sizeof(char) * 8;
     
     char _message [80];
-    memcpy(static_cast<void *>(&_message), bobj, 80);
+    memcpy(static_cast<void *>(&_message), bobj, sizeof(char) *80);
     message = _message; 
-    bobj += 80 * sizeof(char);
+    bobj += sizeof(char) * 80;
 
+    bobj -= MESSAGE_SIZE;
     return 0;
 }
 
@@ -126,14 +130,13 @@ void ChatClient::login()
 
     ChatMessage em(nick, msg);
     em.type = ChatMessage::LOGIN;
-    std:: cout << "Type: " << ChatMessage::LOGIN << '\n',
 
-    std::cout << "Logging: sending: " << em.type << " to: " << socket << '\n';
     int err = socket.send(em, socket);
     if (err == -1) {
         std::cout << "login send error \n";
     }
-    
+    std::cout << "send succeed: " << err << '\n';
+
 }
 
 void ChatClient::logout()

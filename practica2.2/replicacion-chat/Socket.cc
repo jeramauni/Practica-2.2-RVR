@@ -24,7 +24,7 @@ Socket::Socket(const char * address, const char * port):sd(-1)
 
     sd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-    sa = *(res->ai_addr);
+    sa = *res->ai_addr;
     sa_len = res->ai_addrlen;
     
     freeaddrinfo(res);
@@ -67,8 +67,8 @@ bool operator== (const Socket &s1, const Socket &s2)
     //Comparar los campos sin_family, sin_addr.s_addr y sin_port
     //de la estructura sockaddr_in de los Sockets s1 y s2
     //Retornar false si alguno difiere
-    struct sockaddr_in * socket_f = (struct sockaddr_in *)& s1.sa;
-    struct sockaddr_in * socket_s = (struct sockaddr_in *)& s2.sa;
+    struct sockaddr_in * socket_f = (struct sockaddr_in *) &s1.sa;
+    struct sockaddr_in * socket_s = (struct sockaddr_in *) &s2.sa;
     if(socket_f->sin_family == socket_s->sin_family)
     {
         if(socket_f->sin_addr.s_addr == socket_s->sin_addr.s_addr)
