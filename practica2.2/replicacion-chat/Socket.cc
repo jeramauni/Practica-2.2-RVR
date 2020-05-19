@@ -11,7 +11,7 @@ Socket::Socket(const char * address, const char * port):sd(-1)
     memset(&hints, 0, sizeof(struct addrinfo));
 
     hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_socktype = SOCK_DGRAM;
 
     int rc = getaddrinfo(address, port, &hints, &res);
 
@@ -57,9 +57,15 @@ int Socket::recv(Serializable &obj, Socket * &sock)
 int Socket::send(Serializable& obj, const Socket& sock)
 {
     obj.to_bin();
-    int bytes = sendto(sd, obj.data(), MAX_MESSAGE_SIZE, 0, &sock.sa, sock.sa_len);
-    if(bytes < 0) return -1;
-    return 0;
+    int bytes = sendto(sd, obj.data(), obj.size(), 0, &sock.sa, sock.sa_len);
+    if(bytes < 0) 
+    {
+        return -1;
+    }
+    else  
+    {
+        return 0;
+    }
 }
 
 bool operator== (const Socket &s1, const Socket &s2)
@@ -69,6 +75,7 @@ bool operator== (const Socket &s1, const Socket &s2)
     //Retornar false si alguno difiere
     struct sockaddr_in * socket_f = (struct sockaddr_in *) &s1.sa;
     struct sockaddr_in * socket_s = (struct sockaddr_in *) &s2.sa;
+    
     if(socket_f->sin_family == socket_s->sin_family)
     {
         if(socket_f->sin_addr.s_addr == socket_s->sin_addr.s_addr)
@@ -94,4 +101,3 @@ std::ostream& operator<<(std::ostream& os, const Socket& s)
 
     return os;
 };
-

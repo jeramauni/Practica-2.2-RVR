@@ -10,10 +10,10 @@ void ChatMessage::to_bin()
     memcpy(_data, static_cast<void *>(&type), sizeof(uint8_t));
     _data += sizeof(uint8_t);
 
-    memcpy(_data, static_cast<void *>((char*)nick.c_str()), sizeof(nick));
+    memcpy(_data, static_cast<void *>((char*)nick.c_str()), sizeof(char) * 8);
     _data += sizeof(char) * 8;
 
-    memcpy(_data, static_cast<void *>((char*)message.c_str()), sizeof(message));
+    memcpy(_data, static_cast<void *>((char*)message.c_str()), sizeof(char) * 8);
     _data += sizeof(char) * 80;
 
     _data -= MESSAGE_SIZE;
@@ -53,23 +53,36 @@ void ChatServer::do_messages()
         Socket* client_Socket;
         ChatMessage message_Client;
 
+        std::cout << "Cantidad de usuarios: " << clients.size() << "\n";
+
         int err = socket.recv(message_Client, client_Socket);
+
+        bool is_old_user = false;
+
+        auto client_position = clients.begin();
+
+        auto it = clients.begin();
+        while( it != clients.end() && !is_old_user)
+        {
+            if(*(*it) == *client_Socket)
+            {
+                is_old_user = true;
+                client_position = it;
+            }
+            it++;
+        }
+
         if(err != -1)
         {
             switch (message_Client.type)
             {
                 case ChatMessage::LOGIN:
                 {
-                    std::vector<Socket*>::iterator it = clients.begin();
-                    while(it != clients.end() && (*it) != client_Socket)
+                    if(is_old_user)
                     {
-                        it++;
+                        std::cout << "LOGIN FAIL: Client " << message_Client.nick <<  " is already logged\n";
                     }
-                    if(it != clients.end())
-                    {
-                        std::cout << "LOGIN FAIL: Client " << message_Client.nick <<  "is already logged\n";
-                    }
-                    {
+                    else {
                         clients.push_back(client_Socket);
                         std::cout << "New client " << message_Client.nick <<  " logged succesfully\n";
                     }
@@ -77,14 +90,10 @@ void ChatServer::do_messages()
                 }   
                 case ChatMessage::LOGOUT:
                 {
-                    std::vector<Socket*>::iterator it = clients.begin();
-                    while(it != clients.end() && (*it) != client_Socket)
+                    if(is_old_user)
                     {
-                        it++;
-                    }
-                    if(it != clients.end())
-                    {
-                        clients.erase(it);
+                        delete *client_position;
+                        clients.erase(client_position);
                         std::cout << "Client " << message_Client.nick <<  " logged out succesfully\n";
                     }
                     else
@@ -96,16 +105,15 @@ void ChatServer::do_messages()
 
                 case ChatMessage::MESSAGE:
                 {
-                    std::vector<Socket*>::iterator it = clients.begin();
-                    while(it != clients.end() && (*it) != client_Socket)
+                    if(is_old_user)
                     {
-                        it++;
-                    }
-                    if(it != clients.end())
-                    {
-                        for(std::vector<Socket*>::iterator it = clients.begin(); it != clients.end(); it++)
+                        std::cout << "Is not an old user \n";
+                        for(auto it = clients.begin(); it != clients.end(); it++)
                         {
-                            if((*it) != client_Socket) socket.send(message_Client, *(*it));
+                            if(!(*(*it) == *client_Socket)) 
+                            {
+                                socket.send(message_Client, *(*it));
+                            }
                         }
                         std::cout << "Client " << message_Client.nick <<  " says "<< message_Client.message <<" \n";
                     }
@@ -119,8 +127,8 @@ void ChatServer::do_messages()
                 default:
                 std::cout << "Default \n";
                     break;
-            }   
-        }       
+            }
+        }
     }
 }
 
@@ -154,7 +162,6 @@ void ChatClient::input_thread()
     bool inChat = true;
     while (inChat)
     {
-        std::cout << "inChat \n";
         // Leer stdin con std::getline
         // Enviar al servidor usando socket
         std::string msg;
@@ -162,8 +169,8 @@ void ChatClient::input_thread()
 
         if(msg == "exit" || msg == "logout")
         {
-            logout();
             inChat = false;
+            logout();
         } 
         else
         {
@@ -190,4 +197,3 @@ void ChatClient::net_thread()
         }
     }
 }
-
